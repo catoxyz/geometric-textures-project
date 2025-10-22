@@ -13,13 +13,17 @@ def init_plot(mesh):
     ax = figure.add_subplot(111, projection='3d')
     # hide axis, thank to
     # https://stackoverflow.com/questions/29041326/3d-plot-with-matplotlib-hide-axes-but-keep-axis-labels/
-    ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.w_zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))   
     # Get rid of the spines
-    ax.w_xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
-    ax.w_yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
-    ax.w_zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        # Hide 3D axis spines if possible (modern matplotlib)
+    for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+        # set_visible is available for spines in 2D, but in 3D we can try hiding pane lines
+        if hasattr(axis, 'set_pane_color'):
+            continue  # already set above
+        # fallback: do nothing, as 3D axes don't have .line or .spines
+        pass
     # Get rid of the ticks
     ax.set_xticks([])
     ax.set_yticks([])
@@ -70,8 +74,14 @@ def fig2data(plot) -> V:
     canvas = plot[2].canvas
     canvas.draw()
     w, h = canvas.get_width_height()
-    buf = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8)
-    buf.shape = (h, w, 3)
+    # Modern matplotlib: use buffer_rgba, then convert to RGB if needed
+    try:
+        buf = np.frombuffer(canvas.tostring_rgb(), dtype=np.uint8)
+        buf.shape = (h, w, 3)
+    except AttributeError:
+        # Fallback for newer matplotlib: use buffer_rgba and convert
+        buf = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8)
+        buf = buf.reshape((h, w, 4))[..., :3]  # drop alpha channel
     return buf.copy()
 
 

@@ -144,7 +144,8 @@ class MeshDS: # : mesh data structures
         vs_degree = torch.zeros(vs.shape[0], dtype=torch.int64)
         for face in faces:
             vs_degree[face] += 1
-        MeshDS.MAX_V_DEG = max(vs_degree.max().item(), 6)
+        # Use a higher minimum to avoid IndexError for complex meshes
+        MeshDS.MAX_V_DEG = max(vs_degree.max().item(), 32)
 
     def __len__(self):
         return self.gfmm.shape[1]

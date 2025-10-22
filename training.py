@@ -149,6 +149,8 @@ if __name__ == '__main__':
     opt_ = options.TrainOption()
     opt_.parse_cmdline()
     opt_ = opt_.load()
-    device_ = CUDA(0)
+    # Force CPU device for Apple Silicon/macOS
+    from custom_types import CPU
+    device_ = CPU
     trainer = Trainer(opt_, device_)
     trainer.train()

@@ -16,19 +16,28 @@ class ChamferLoss(nn.Module):
         super(ChamferLoss, self).__init__()
         #
         self.device = device
-        self.gpu_id = device.index
+        self.use_gpu = hasattr(device, 'index') and device.type == 'cuda'
+        self.gpu_id = device.index if self.use_gpu else -1
 
-        # we need only a StandardGpuResources per GPU
-        self.res = faiss.StandardGpuResources()
-        # self.res.setTempMemoryFraction(0.1)
-        self.res.setTempMemory(1 * (1024 * 1024 * 1024))  # Bytes, the single digit is basically GB)
-        self.flat_config = faiss.GpuIndexFlatConfig()
-        self.flat_config.device = self.gpu_id
+        if self.use_gpu and hasattr(faiss, 'StandardGpuResources'):
+            # we need only a StandardGpuResources per GPU
+            self.res = faiss.StandardGpuResources()
+            # self.res.setTempMemoryFraction(0.1)
+            self.res.setTempMemory(1 * (1024 * 1024 * 1024))  # Bytes, the single digit is basically GB)
+            self.flat_config = faiss.GpuIndexFlatConfig()
+            self.flat_config.device = self.gpu_id
+        else:
+            # CPU fallback
+            self.res = None
+            self.flat_config = None
 
 
     def build_nn_index(self, database):
         index_cpu = faiss.IndexFlatL2(3)
-        index = faiss.index_cpu_to_gpu(self.res, self.gpu_id, index_cpu)
+        if self.use_gpu and self.res is not None:
+            index = faiss.index_cpu_to_gpu(self.res, self.gpu_id, index_cpu)
+        else:
+            index = index_cpu
         index.add(database)
         return index
 
@@ -37,7 +46,7 @@ class ChamferLoss(nn.Module):
 
         D_var =torch.from_numpy(np.ascontiguousarray(D))
         I_var = torch.from_numpy(np.ascontiguousarray(I).astype(np.int64))
-        if self.gpu_id >= 0:
+        if self.use_gpu and self.gpu_id >= 0:
             D_var = D_var.to(self.device)
             I_var = I_var.to(self.device)
 

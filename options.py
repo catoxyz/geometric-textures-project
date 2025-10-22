@@ -66,9 +66,17 @@ class Options:
 
     @staticmethod
     def in_notebook() -> bool:
-        if len(sys.argv) < 2:
-            return False
-        return reduce(lambda x, y: x or y, map(lambda x: 'jupyter' in x, sys.argv[1:]))
+        # Check for IPython/Jupyter environment more robustly
+        try:
+            from IPython import get_ipython
+            if get_ipython() is not None:
+                return True
+        except ImportError:
+            pass
+        # Fallback: check for jupyter in argv or kernel JSON files
+        if len(sys.argv) >= 2:
+            return any('jupyter' in arg or 'kernel' in arg or arg.endswith('.json') for arg in sys.argv[1:])
+        return False
 
     def parse_cmdline(self):
         if self.in_notebook():
